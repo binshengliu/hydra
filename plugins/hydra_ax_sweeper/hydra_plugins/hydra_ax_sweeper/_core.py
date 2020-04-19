@@ -6,6 +6,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 from ax import ParameterType  # type: ignore
 from ax.core import types as ax_types  # type: ignore
 from ax.service.ax_client import AxClient  # type: ignore
+from ax.plot.render import plot_config_to_html
+from ax.utils.report.render import render_report_elements
+
 from hydra.core.config_loader import ConfigLoader
 from hydra.core.plugins import Plugins
 from hydra.plugins.launcher import Launcher
@@ -138,6 +141,7 @@ class CoreAxSweeper:
         self.sweep_dir: str
         self.job_idx: Optional[int] = None
         self.max_batch_size = max_batch_size
+        self.save_contour = ax_config.save_contour
 
     def setup(
         self,
@@ -202,6 +206,17 @@ class CoreAxSweeper:
             f"{self.sweep_dir}/optimization_results.yaml",
         )
         log.info("Best parameters: " + str(best_parameters))
+        if self.save_contour:
+            for one in self.save_contour:
+                plot_config = ax_client.get_contour_plot(one.param_x, one.param_y)
+                with open(f"{self.sweep_dir}/{one.output}", "w") as outfile:
+                    outfile.write(
+                        render_report_elements(
+                            one.output,
+                            html_elements=[plot_config_to_html(plot_config)],
+                            header=False,
+                        )
+                    )
 
     def sweep_over_batches(
         self, ax_client: AxClient, batch_of_trials: BatchOfTrialType,
